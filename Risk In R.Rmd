@@ -1,0 +1,198 @@
+---
+title: "Credit Card Risk Analysis Using R"
+author: "Shah CNS"
+date: "15-09-2021"
+output:
+  pdf_document: default
+  html_notebook:
+    df_print: paged
+---
+
+# Risk Analysis:
+Mainly financial risk arises when a financial product or itself called money/cash transaction occurs. 
+
+  (1) Idea of Dept: When financial institution lend money/cash to individuals or to organization. 
+  (2) Idea of Equity: When an individual or organization sell or buy shares from the same.
+
+The risk associated with Dept is **Credit Risk** and risk associated with Equity is **Market Risk**.
+
+## What is actually credit risk?
+
+Credit risk is the risk when borrower will not pay the borrowed money to financial institution.
+
+## What is actually market risk?
+
+Market risk is the risk arises when a individual sell or buy stocks to the other individuals or to the organization.
+
+## What are the other risks?
+
+**Credit Risk**: Will the borrower will pay back the lend money.
+
+**Market Risk**: Will stock price go up or down.
+
+**Liquidity Risk**: When an organization or individual having short of liquid money to particular needs. 
+
+**Operation Risk** Risk arises when anything that will interrupt the business or services.
+
+**Systematic Risk**: Uncertainty occurs during the business.
+
+
+#### What is default in Credit analysis:
+
+An individual or organization in financial process denied the terms of pay back and then individual or person is called Default. 
+
+                     # ASPECTS OF CREDIT RISK 
+                     
+There are 3 main things that accountable for credit risk.
+
+  ** (1) Probability of Default**
+  ** (2) Exposure of Default**
+  ** (3) Loss Given Default**
+  
+#### What is the probability of default PD.
+
+It is the chance of an individual become a default in the financial institution point of view. $or$ Out of 100 borrowers how many of them will fail to pay back the lend money.
+
+#### What is the exposure of default EOD.
+
+Total money is at risk when financial institution realize a default has occurred. 
+
+# What is the loss given default LGD.
+
+When company confirms 100% that an individual is default and company initiate revenue recovery to ensure loss is $\le$100%.
+
+***Introduction of a Data Set in R***
+```{r}      
+library(ISLR)
+```
+
+Loading & Exploring data using help().
+
+We have four variable such as Default, Student, Income and Balance.
+
+Statistic 
+```{r}
+summary(Default)
+```
+In this data we have sample size let n = 10000 and no of default cases let say x = 333
+
+Simply we can calculate the PD as given below;
+PD = $x/n$
+```{r}
+333/10000
+```
+**Interpretation** There is 3.33% of chance that an individual will be default.
+
+Other meaningful insights as well.
+Total balance of lend money
+```{r}
+sum(Default$balance)
+```
+# Statistical approach towards the aspects.
+## Logistic Regression.
+
+Mathematically we can express the relation between characteristics of default and features of loan using certain parameters as given below;
+
+Then logistic regression for PD = $(e^(\beta_0+\beta_1X_1+\beta_2X_2+...+\beta_nX_n))/(1+e^(\beta_0+\beta_1X_1+\beta_21X_2+...+\beta_nX_n)$
+
+## Linear Regression
+
+Mathematically we can express the relation between characteristics of default and features of loan using certain parameters as given below;020002222222
+
+Then linear regression for EOD = $\beta_0+\beta_1X_1+\beta_21X_2+...+\beta_nX_n$
+
+### Application of logistic and linear to the Default data set in ISLR package.
+
+Logistic regression using lrm() function in "rms" package.
+```{r}
+library(rms)
+log_fit=lrm(default~student+balance+income,data = Default)
+log_fit
+```
+**Interpretation**
+
+ln(Default) = -10.8690 - 0.6468 * ln(student) + 0.0057 * ln(balance) + 0.0000 * ln(income)
+
+Since ROC value, c = 0.950 almost perfect fit for the model. 
+
+Linear regression for predicting the balance amount for student who is default.
+```{r}
+linear_fit=lm(balance~student+income,data = Default)
+summary(linear_fit)
+```
+**Interpretation**:
+
+Balance = 767.6 + 218.4 * Student + 0.0001052 * income
+
+Since R-sq or coefficient of determination = 0.041 (or 4.1%) one thing which is sure that model is not good.
+
+Appropriate only if create a model to predict balance of students are default.
+
+# Balancing data set.
+
+```{r}
+default_table=table(Default$default)
+barplot(default_table)
+```
+```{r}
+library(ROSE)
+library(smotefamily)
+```
+
+```{r}
+under_sampling=ovun.sample(default~.,data = Default,method = 'under')$data
+barplot(table(under_sampling$default)) 
+```
+```{r}
+summary(under_sampling)
+```
+
+```{r}
+fit_over_linear=lm(balance~student+income,data = under_sampling)
+summary(fit_over_linear)
+```
+
+
+```{r}
+newdefault=Default
+newdefault$student=as.numeric(newdefault$student)
+default_smote=SMOTE(newdefault[,-1],as.numeric(newdefault$default))
+default_smote=default_smote$data
+table(default_smote$class)
+```
+```{r}
+library(rms)
+linear_regr_model=lrm(default~.,data = under_sampling)
+linear_regr_model
+```
+```{r}
+linear_discriminant_ana_fit=lda(default~.,data = under_sampling)
+linear_discriminant_ana_fit
+```
+*Conclusion*:
+~ P(D)= 49%, which is data is almost balanced. Also, note that balanced data (viz no of default = no of not default) high propensity of default (more chance in the way of default).
+
+~From the group means: default is the default-variable here. Those who are not default, 28% of them are student which has average balance 814 (in dollar) and average income is 33250 (in dollar). 
+
+~And those who are default 38% of them are students and average balance is to be paid is 1748 (in dollars) & average income of this group is 32089 (in dollars)
+
+```{r}
+regression_decision_tree=rpart(default~.,data = under_sampling,method = "anova",control = rpart.control(cp = 0.05))                              
+regression_decision_tree
+```
+```{r}
+par(mfrow = c(1,2), xpd = NA)
+plot(regression_decision_tree)
+text(regression_decision_tree, use.n = TRUE)
+```
+In Decision Tree it only shows that a particular tree against the input given. Instead of Decision Tree we can use Random Forest. Which is create a n no:of training sets to have n no:of decision tree, finally carry out a voting to find most repeated out of decision tree and can have the particular output.
+
+```{r}
+random_forest_classification=randomForest(default~.,data = under_sampling)
+random_forest_classification
+```
+ Here we can see 500 no of trees created and by voting confusion matrix is created. We predicted 341 are not defaulted and among these 295 were never default but 46 were default (P(D)= 46/341=0.1348974)
+ 
+ And We predicted 333 individual are default and among 57 were not default and remaining 276 were default, 
+
+Also, OOB error = 15.28% ,viz there is 15.28% chance for occurrence error in prediction.
